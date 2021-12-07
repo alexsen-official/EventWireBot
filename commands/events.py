@@ -4,10 +4,9 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
-
-from classes.bot import send_message
 
 from commands.back import BACK_COMMAND
 from commands.create import CREATE_COMMAND
@@ -18,7 +17,7 @@ def events(
     update: Update,
     context: CallbackContext
 ) -> None:
-    send_message(
+    Bot.edit_previous_message(
         update, context,
         EVENTS_COMMAND.description,
         EVENTS_COMMAND.markup
@@ -27,7 +26,7 @@ def events(
 
 EVENTS_COMMAND = Command(
     callback=events,
-    description="🎤 Управление мероприятиями",
+    description="🎤 Управление мероприятиями\n",
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

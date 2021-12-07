@@ -1,24 +1,79 @@
+from os import (
+    walk,
+    makedirs
+)
+
+from os.path import (
+    isdir,
+    exists
+)
+
+from json import (
+    load,
+    dump
+)
+
 from typing import Any
-from os import makedirs
-from os.path import exists
-from json import load, dump
+from sys import maxsize
+from config import ENCODING
 
 
 class Pyson:
-    def read(
+    def read_json(
         path: str
     ) -> list[dict[str, Any]]:
         if not exists(path):
             return []
 
-        with open(path, "r", encoding="UTF-8") as file:
+        with open(path, "r", encoding=ENCODING) as file:
             data = load(file)
 
         return data
 
-    def write(
+    def write_json(
         path: str,
         data: list[dict[str, Any]]
+    ) -> None:
+        Pyson.make_dirs(path)
+
+        with open(path, "w", encoding=ENCODING) as file:
+            dump(data, file)
+
+    def append_json(
+        path: str,
+        object: dict[str, Any]
+    ) -> None:
+        data = Pyson.read_json(path)
+        data.append(object)
+
+        Pyson.write_json(path, data)
+
+    def erase_json(
+        path: str,
+        *args: list[Any]
+    ) -> None:
+        data = Pyson.read_json(path)
+        object = Pyson.find_object(path, *args)
+
+        if object in data:
+            data.remove(object)
+            Pyson.write_json(path, data)
+
+    def find_object(
+        path: str,
+        *args: list[Any]
+    ) -> dict[str, Any]:
+        data = Pyson.read_json(path)
+
+        for object in data:
+            for value in args:
+                if value in object.values():
+                    return object
+
+        return None
+
+    def make_dirs(
+        path: str
     ) -> None:
         for index, character in enumerate(path):
             if character == "/":
@@ -27,29 +82,9 @@ class Pyson:
                 if not exists(directory):
                     makedirs(directory)
 
-        with open(path, "w", encoding="UTF-8") as file:
-            dump(data, file)
-
-    def append(
-        path: str,
-        object: dict[str, Any]
-    ) -> None:
-        data = Pyson.read(path)
-        data.append(object)
-
-        Pyson.write(path, data)
-
-    def erase(
-        path: str,
-        **kwargs
-    ) -> None:
-        data = Pyson.read(path)
-
-        for object in data:
-            for key, value in kwargs.items():
-                if key not in object.keys():
-                    continue
-
-                if object[key] == value:
-                    data.remove(object)
-                    Pyson.write(path, data)
+    def generate_id(
+        path: str
+    ) -> int:
+        for id in range(1, maxsize):
+            if Pyson.find_object(path, id) is None:
+                return id

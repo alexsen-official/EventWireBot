@@ -9,12 +9,8 @@ from telegram.ext import (
     ConversationHandler
 )
 
+from classes.bot import Bot
 from classes.command import Command
-
-from classes.bot import (
-    send_message,
-    delete_messages
-)
 
 from typing import Any
 from commands.back import BACK_COMMAND
@@ -27,24 +23,20 @@ def cancel(
 ) -> Any:
     message = update.message
 
-    delete_messages(update, context)
+    if message and Command.filter(message):
+        Bot.edit_previous_message(
+            update, context,
+            CANCEL_COMMAND.states["warning"]
+        )
 
-    if message:
-        if Command.filter(message):
-            send_message(
-                update, context,
-                CANCEL_COMMAND.description,
-                blank=True
-            )
+        try:
+            return globals()[message[1:]](update, context)
+        except:
+            return UNDEFINED_COMMAND.callback(update, context)
 
-            try:
-                return globals()[message[1:]](update, context)
-            except:
-                return UNDEFINED_COMMAND.callback(update, context)
-
-    send_message(
+    Bot.edit_previous_message(
         update, context,
-        CANCEL_COMMAND.description,
+        CANCEL_COMMAND.states["warning"],
         CANCEL_COMMAND.markup
     )
 
@@ -53,7 +45,10 @@ def cancel(
 
 CANCEL_COMMAND = Command(
     callback=cancel,
-    description="⚠️ <b>Выполнение предыдущей команды было прервано!</b>",
+
+    states={
+        "warning": "⚠️ <b>Выполнение предыдущей команды было прервано!</b>"
+    },
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

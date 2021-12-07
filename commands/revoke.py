@@ -4,11 +4,10 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.pyson import Pyson
 from classes.command import Command
 from telegram.ext import CallbackContext
-
-from classes.bot import send_message
 
 from config import ADMINS_FILE
 from commands.back import BACK_COMMAND
@@ -17,29 +16,31 @@ from commands.back import BACK_COMMAND
 def revoke(
     update: Update,
     context: CallbackContext,
-    username: str = None
+    username: str = ""
 ) -> None:
-    query = update.callback_query
-    state = "default"
     keyboard = []
 
-    if username is None:
-        for admin in Pyson.read(ADMINS_FILE):
+    if not username:
+        for admin in Pyson.read_json(ADMINS_FILE):
+            username = admin["username"]
+
             keyboard.append([
                 InlineKeyboardButton(
-                    text=admin["username"],
-                    callback_data=f"{REVOKE_COMMAND.name} {admin['username']}"
+                    text=f"@{username}",
+                    callback_data=f"{REVOKE_COMMAND.name} {username}"
                 )
             ])
 
-        if not keyboard:
+        if keyboard:
+            state = "default"
+        else:
             state = "warning"
     else:
-        if query.from_user.username == username:
+        if Bot.from_whom(update).username == username:
             state = "error"
         else:
-            Pyson.erase(ADMINS_FILE, username=username)
             state = "success"
+            Pyson.erase_json(ADMINS_FILE, username)
 
     keyboard.append([
         InlineKeyboardButton(
@@ -48,8 +49,11 @@ def revoke(
         )
     ])
 
-    response = REVOKE_COMMAND.states[state].format(username)
-    send_message(update, context, response, InlineKeyboardMarkup(keyboard))
+    Bot.edit_previous_message(
+        update, context,
+        REVOKE_COMMAND.states[state].format(username),
+        InlineKeyboardMarkup(keyboard)
+    )
 
 
 REVOKE_COMMAND = Command(
@@ -57,7 +61,7 @@ REVOKE_COMMAND = Command(
     description="➖ Разжаловать администратора",
 
     states={
-        "default": "❓ <b>Какого администратора вы хотите разжаловать?</b>",
+        "default": "❓ Какого администратора вы хотите разжаловать?",
         "success": "✅ <b>Администратор @{} успешно разжалован!</b>",
         "warning": "⚠️ <b>Нет назначенных администраторов!</b>",
         "error": "❌ <b>Нельзя разжаловать самого себя!</b>"

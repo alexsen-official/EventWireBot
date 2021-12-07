@@ -4,10 +4,9 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
-
-from classes.bot import send_message
 
 from commands.back import BACK_COMMAND
 from commands.attach import ATTACH_COMMAND
@@ -18,7 +17,7 @@ def channels(
     update: Update,
     context: CallbackContext
 ) -> None:
-    send_message(
+    Bot.edit_previous_message(
         update, context,
         CHANNELS_COMMAND.description,
         CHANNELS_COMMAND.markup
@@ -27,7 +26,7 @@ def channels(
 
 CHANNELS_COMMAND = Command(
     callback=channels,
-    description="📢 Управление каналами",
+    description="📢 Управление каналами\n",
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

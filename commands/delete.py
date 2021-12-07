@@ -4,23 +4,12 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.pyson import Pyson
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from classes.bot import (
-    send_message,
-    delete_message
-)
-
-from os import remove
-from os.path import exists
-
-from config import (
-    EVENTS_FILE,
-    THUMBNAILS_DIRECTORY
-)
-
+from config import EVENTS_FILE
 from commands.back import BACK_COMMAND
 
 
@@ -29,12 +18,12 @@ def delete(
     context: CallbackContext,
     id: int = None
 ) -> None:
-    state = "default"
-    keyboard = []
     title = ""
+    keyboard = []
+    bot = context.bot
 
     if id is None:
-        for event in Pyson.read(EVENTS_FILE):
+        for event in Pyson.read_json(EVENTS_FILE):
             keyboard.append([
                 InlineKeyboardButton(
                     text=event["title"],
@@ -42,28 +31,24 @@ def delete(
                 )
             ])
 
-        if not keyboard:
+        if keyboard:
+            state = "default"
+        else:
             state = "warning"
     else:
-        for event in Pyson.read(EVENTS_FILE):
-            if event["id"] == int(id):
-                for publication in event["published"]:
-                    thumbnail = f"{THUMBNAILS_DIRECTORY}/{event['id']}.jpg"
-
-                    delete_message(
-                        update, context,
-                        publication["message_id"],
-                        publication["chat_id"]
-                    )
-
-                    if exists(thumbnail):
-                        remove(thumbnail)
-
-                title = event["title"]
-                break
-
-        Pyson.erase(EVENTS_FILE, id=int(id))
+        id = int(id)
         state = "success"
+        event = Pyson.find_object(EVENTS_FILE, id)
+        title = event["title"]
+
+        for publication in event["published"]:
+            bot.delete_message(
+                chat_id=publication["chat_id"],
+                message_id=publication["message_id"]
+            )
+
+        Bot.delete_thumbnail(id)
+        Pyson.erase_json(EVENTS_FILE, id)
 
     keyboard.append([
         InlineKeyboardButton(
@@ -72,8 +57,11 @@ def delete(
         )
     ])
 
-    response = DELETE_COMMAND.states[state].format(title)
-    send_message(update, context, response, InlineKeyboardMarkup(keyboard))
+    Bot.edit_previous_message(
+        update, context,
+        DELETE_COMMAND.states[state].format(title),
+        InlineKeyboardMarkup(keyboard)
+    )
 
 
 DELETE_COMMAND = Command(
@@ -81,7 +69,7 @@ DELETE_COMMAND = Command(
     description="➖ Удалить мероприятие",
 
     states={
-        "default": "❓ <b>Какое мероприятие вы хотите удалить?</b>",
+        "default": "❓ Какое мероприятие вы хотите удалить?",
         "success": "✅ <b>Мероприятие «{}» успешно удалено!</b>",
         "warning": "⚠️ <b>Нет опубликованных мероприятий!</b>"
     }

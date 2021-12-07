@@ -4,10 +4,9 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
-
-from classes.bot import send_message
 
 from commands.back import BACK_COMMAND
 
@@ -21,12 +20,15 @@ def help(
     for command in Command.commands:
         response += f"<b>/{command.name}</b> - {command.description}\n"
 
-    send_message(update, context, response, HELP_COMMAND.markup)
+    Bot.edit_previous_message(
+        update, context, response,
+        HELP_COMMAND.markup
+    )
 
 
 HELP_COMMAND = Command(
     callback=help,
-    description="🔎 Просмотр доступных команд",
+    description="🔎 Просмотр доступных команд\n",
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

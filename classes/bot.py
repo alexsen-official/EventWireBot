@@ -1,8 +1,18 @@
+from sys import path
 from telegram import (
+    User,
+    Chat,
     Update,
+    Message,
     ParseMode,
     InlineKeyboardMarkup,
     InlineKeyboardButton
+)
+
+from typing import (
+    Any,
+    Tuple,
+    Iterable
 )
 
 from telegram.ext import (
@@ -10,201 +20,270 @@ from telegram.ext import (
     ConversationHandler
 )
 
-from telegram.user import User
 from classes.pyson import Pyson
-from telegram.message import Message
 
-
-from os import makedirs
+from os import (
+    walk,
+    remove,
+    makedirs
+)
 
 from os.path import (
-    exists,
-    splitext
+    isdir,
+    exists
 )
 
-from typing import (
-    Any,
-    Tuple,
-    Iterable,
-    BinaryIO
-)
+from json import loads
+from urllib.request import urlopen
 
 from config import (
+    BOT_TOKEN,
+    EVENTS_FILE,
     ADMINS_FILE,
     CHANNELS_FILE,
-    EVENTS_FILE,
+    THUMBNAILS_FORMAT,
     THUMBNAILS_DIRECTORY
 )
 
 
-messages: list[Message] = []
+class Bot:
+    messages: list[Message] = []
 
+    def get_chat(
+        context: CallbackContext,
+        url: str
+    ) -> Chat:
+        domain = ".me/"
+        bot = context.bot
+        mention = url[url.find(domain) + len(domain):]
+        query = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?text=!&chat_id=@{mention}"
 
-def signal_last(
-    iterable: Iterable[Any]
-) -> Iterable[Tuple[bool, Any]]:
-    iterator = iter(iterable)
-    next_value = next(iterator)
+        try:
+            with urlopen(query) as page:
+                data = loads(page.read().decode())
 
-    for value in iterator:
-        yield [False, next_value]
-        next_value = value
+                chat_id = data["result"]["chat"]["id"]
+                message_id = data["result"]["message_id"]
 
-    yield [True, next_value]
+                chat = bot.get_chat(chat_id)
+                bot.delete_message(chat_id, message_id)
 
+                return chat
+        except:
+            return None
 
-def from_whom(
-    update: Update
-) -> User:
-    reply = update.message
+    def from_whom(
+        update: Update
+    ) -> User:
+        message = update.message
 
-    if not reply:
-        reply = update.callback_query
+        if not message:
+            return update.callback_query.from_user
 
-    return reply.from_user
+        return message.from_user
 
+    def check_admin(
+        update: Update,
+        context: CallbackContext
+    ) -> int:
+        username = Bot.from_whom(update).username
+        admin = Pyson.find_object(ADMINS_FILE, username)
 
-def send_message(
-    update: Update,
-    context: CallbackContext,
-    text: str,
-    markup: InlineKeyboardMarkup = None,
-    chat_id: int = None,
-    blank: bool = True,
-    check: bool = True
-) -> Message:
-    if chat_id is None:
-        chat_id = update.effective_chat.id
-
-    if check:
-        check_admin(update, context)
-
-    if blank:
-        delete_messages(update, context)
-
-    return edit_previous_message(update, context, text, markup)
-
-
-def delete_message(
-    update: Update,
-    context: CallbackContext,
-    message_id: int,
-    chat_id: int = None
-) -> bool:
-    bot = context.bot
-
-    if chat_id is None:
-        chat_id = update.effective_chat.id
-
-    try:
-        return bot.delete_message(chat_id, message_id)
-    except:
-        return False
-
-
-def delete_messages(
-    update: Update,
-    context: CallbackContext
-) -> None:
-    if update.message:
-        delete_message(update, context, update.message.message_id)
-
-    if len(messages) > 1:
-        for message in messages[:-1]:
-            delete_message(update, context, message.message_id)
-            messages.remove(message)
-
-
-def edit_previous_message(
-    update: Update,
-    context: CallbackContext,
-    text: str,
-    markup: InlineKeyboardMarkup = None
-) -> None:
-    try:
-        messages[-1] = context.bot.edit_message_text(
-            message_id=messages[-1].message_id,
-            chat_id=update.effective_chat.id,
-            text=text,
-            reply_markup=markup,
-            parse_mode=ParseMode.HTML
+        text = (
+            "❌ <b>Отказано в доступе!</b>\n"
+            "Вы не являетесь администатором!"
         )
-    except:
-        messages.append(
-            context.bot.send_message(
-                chat_id=update.effective_chat.id,
+
+        if username in admin.values():
+            return ConversationHandler.END
+
+        Bot.send_message(update, context, text)
+        exit()
+
+    def signal_last(
+        iterable: Iterable[Any]
+    ) -> Iterable[Tuple[bool, Any]]:
+        iterator = iter(iterable)
+        next_item = next(iterator)
+
+        for item in iterator:
+            yield [False, next_item]
+            next_item = item
+
+        yield [True, next_item]
+
+    def send_message(
+        update: Update,
+        context: CallbackContext,
+        text: str,
+        markup: InlineKeyboardMarkup = None,
+        chat_id: int = None
+    ) -> Message:
+        bot = context.bot
+
+        if chat_id is None:
+            chat_id = update.effective_chat.id
+
+        Bot.messages.append(
+            bot.send_message(
+                chat_id=chat_id,
                 text=text,
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
         )
 
-    return messages[-1]
+        return Bot.messages[-1]
 
+    def edit_message(
+        update: Update,
+        context: CallbackContext,
+        message: Message,
+        text: str,
+        markup: InlineKeyboardMarkup = None,
+        chat_id: int = None
+    ) -> Message:
+        bot = context.bot
+        message_id = message.message_id
 
-def check_admin(
-    update: Update,
-    context: CallbackContext
-) -> int:
-    username = from_whom(update).username
+        if chat_id is None:
+            chat_id = update.effective_chat.id
 
-    for admin in Pyson.read(ADMINS_FILE):
-        if username == admin["username"]:
-            return ConversationHandler.END
+        if message in Bot.messages:
+            Bot.messages.remove(message)
 
-    delete_messages(update, context)
+        Bot.messages.append(
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML,
+            )
+        )
 
-    response = (
-        "❌ <b>Отказано в доступе!</b>\n"
-        "Вы не являетесь администатором!"
-    )
+        return Bot.messages[-1]
 
-    send_message(update, context, response, check=False)
-    exit()
+    def edit_previous_message(
+        update: Update,
+        context: CallbackContext,
+        text: str,
+        markup: InlineKeyboardMarkup = None
+    ) -> Message:
+        Bot.delete_user_message(update, context)
 
+        if Bot.messages:
+            previous_message = Bot.messages[-1]
+            return Bot.edit_message(update, context, previous_message, text, markup)
 
-def dislike(
-    update: Update,
-    context: CallbackContext,
-    event_id: int
-) -> None:
-    like(update, context, event_id, reverse=True)
+        return Bot.send_message(update, context, text, markup)
 
+    def delete_message(
+        update: Update,
+        context: CallbackContext,
+        message: Message,
+        chat_id: int = None
+    ) -> bool:
+        if message:
+            bot = context.bot
 
-def like(
-    update: Update,
-    context: CallbackContext,
-    event_id: int,
-    reverse: bool = False
-) -> None:
-    bot = context.bot
-    event_id = int(event_id)
-    events = Pyson.read(EVENTS_FILE)
-    user_id = from_whom(update).id
-    reactions = ["liked", "disliked"]
+            if chat_id is None:
+                chat_id = update.effective_chat.id
 
-    if reverse:
-        reactions.reverse()
+            if message in Bot.messages:
+                Bot.messages.remove(message)
 
-    for event in events:
-        if event["id"] == event_id:
-            if user_id in event[reactions[0]]:
-                event[reactions[0]].remove(user_id)
-            else:
-                event[reactions[0]].append(user_id)
+            try:
+                return bot.delete_message(
+                    chat_id=chat_id,
+                    message_id=message.message_id
+                )
+            except:
+                return False
 
-                if user_id in event[reactions[1]]:
-                    event[reactions[1]].remove(user_id)
+    def delete_user_message(
+        update: Update,
+        context: CallbackContext
+    ) -> bool:
+        message = update.message
+        return Bot.delete_message(update, context, message)
 
-            markup = InlineKeyboardMarkup([
-                [InlineKeyboardButton(
-                    text=f"👍 {len(event['liked'])}",
-                    callback_data=f"{like.__name__} {event_id}"
+    def delete_bot_messages(
+        update: Update,
+        context: CallbackContext
+    ) -> None:
+        for message in Bot.messages[:-1]:
+            Bot.delete_message(update, context, message)
+
+    def delete_all_messages(
+        update: Update,
+        context: CallbackContext
+    ) -> None:
+        Bot.delete_bot_messages(update, context)
+        Bot.delete_user_message(update, context)
+
+    def get_thumbnail_path(
+        event_id: int
+    ) -> str:
+        file_name = f"{event_id}.{THUMBNAILS_FORMAT}"
+        file_path = THUMBNAILS_DIRECTORY + file_name
+
+        return file_path
+
+    def download_thumbnail(
+        update: Update,
+        context: CallbackContext
+    ) -> bool:
+        bot = context.bot
+        message = update.message
+
+        Pyson.make_dirs(THUMBNAILS_DIRECTORY)
+
+        try:
+            event_id = context.user_data["id"]
+
+            file_id = message.photo[-1].file_id
+            file_path = Bot.get_thumbnail_path(event_id)
+
+            file = bot.get_file(file_id)
+            file.download(file_path)
+        except:
+            return False
+
+        return True
+
+    def delete_thumbnail(
+        event_id: int
+    ) -> bool:
+        file_path = Bot.get_thumbnail_path(event_id)
+
+        if exists(file_path):
+            remove(file_path)
+            return True
+
+        return False
+
+    def get_formatted_event(
+        event: dict[str, Any]
+    ) -> dict[str, Any]:
+        formatted_event = {
+            "caption": (
+                f"<b>{event['title']}</b>\n\n"
+                f"📅 <b>Дата:</b> {event['date']}\n"
+                f"🕘 <b>Время:</b> {event['time']}\n"
+                f"🌍 <b>Место:</b> {event['place']}\n\n"
+                f"{event['description']}"
+            ),
+
+            "markup": InlineKeyboardMarkup([[
+                InlineKeyboardButton(
+                    text="👍 0",
+                    callback_data=f"{Bot.like} {event['id']}"
                 ),
 
-                    InlineKeyboardButton(
-                    text=f"👎 {len(event['disliked'])}",
-                    callback_data=f"{dislike.__name__} {event_id}"
+                InlineKeyboardButton(
+                    text="👎 0",
+                    callback_data=f"{Bot.dislike} {event['id']}"
                 )],
 
                 [InlineKeyboardButton(
@@ -212,122 +291,126 @@ def like(
                     url=event["url"]
                 )]
             ])
+        }
 
-            for publication in event["published"]:
-                bot.edit_message_reply_markup(
-                    message_id=publication["message_id"],
-                    chat_id=publication["chat_id"],
-                    reply_markup=markup
+        return formatted_event
+
+    def save_event(
+        update: Update,
+        context: CallbackContext
+    ) -> int:
+        event = {
+            "id": context.user_data["id"],
+            "title": context.user_data["title"],
+            "date": context.user_data["date"],
+            "time": context.user_data["time"],
+            "place": context.user_data["place"],
+            "description": context.user_data["description"],
+            "url": context.user_data["url"],
+            "created": Bot.from_whom(update).username,
+            "published": [],
+            "liked": [],
+            "disliked": []
+        }
+
+        Pyson.append_json(EVENTS_FILE, event)
+        return event["id"]
+
+    def publish_event(
+        update: Update,
+        context: CallbackContext,
+        event_id: int
+    ) -> None:
+        bot = context.bot
+
+        channels = Pyson.read_json(CHANNELS_FILE)
+        event = Pyson.find_object(EVENTS_FILE, event_id)
+
+        formatted_event = Bot.get_formatted_event(event)
+        thumbnail_path = Bot.get_thumbnail_path(event_id)
+
+        if channels:
+            for channel in channels:
+                thumbnail = open(thumbnail_path, "rb")
+
+                sent_message = bot.send_photo(
+                    chat_id=channel["id"],
+                    caption=formatted_event["caption"],
+                    reply_markup=formatted_event["markup"],
+                    photo=thumbnail,
+                    parse_mode=ParseMode.HTML
                 )
 
-            Pyson.erase(EVENTS_FILE, id=event_id)
-            Pyson.append(EVENTS_FILE, event)
+                event["published"].append({
+                    "chat_id": sent_message.chat_id,
+                    "message_id": sent_message.message_id
+                })
 
-            break
+        Pyson.erase_json(EVENTS_FILE, event_id)
+        Pyson.append_json(EVENTS_FILE, event)
 
+    def set_reaction(
+        update: Update,
+        context: CallbackContext,
+        event_id: int,
+        dislike: bool = False
+    ) -> None:
+        bot = context.bot
+        event = Pyson.find_object(EVENTS_FILE, event_id)
+        user_id = Bot.from_whom(update).id
+        reactions = ["liked", "disliked"]
 
-def format_event(
-    context: CallbackContext
-) -> dict[str, Any]:
-    event_id = context.user_data["id"]
+        if dislike:
+            reactions.reverse()
 
-    caption = (
-        f"<b>{context.user_data['title']}</b>\n\n"
-        f"📅 <b>Дата:</b> {context.user_data['date']}\n"
-        f"🕘 <b>Время:</b> {context.user_data['time']}\n"
-        f"🌍 <b>Место:</b> {context.user_data['place']}\n\n"
-        f"{context.user_data['description']}"
-    )
+        if user_id in event[reactions[0]]:
+            event[reactions[0]].remove(user_id)
+        else:
+            event[reactions[0]].append(user_id)
 
-    markup = InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            text="👍 0",
-            callback_data=f"{like.__name__} {event_id}"
-        ),
+            if user_id in event[reactions[1]]:
+                event[reactions[1]].remove(user_id)
+
+        markup = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                text=f"👍 {len(event['liked'])}",
+                callback_data=f"{Bot.like} {event_id}"
+            ),
 
             InlineKeyboardButton(
-            text="👎 0",
-            callback_data=f"{like.__name__} {event_id}"
-        )],
+                text=f"👎 {len(event['disliked'])}",
+                callback_data=f"{Bot.dislike} {event_id}"
+            )],
 
-        [InlineKeyboardButton(
-            text="👁️ Подробнее",
-            url=context.user_data["url"]
-        )]
-    ])
+            [InlineKeyboardButton(
+                text="👁️ Подробнее",
+                url=event["url"]
+            )]
+        ])
 
-    return {
-        "caption": caption,
-        "markup": markup
-    }
-
-
-def publish_event(
-    update: Update,
-    context: CallbackContext
-) -> list[dict[str, int]]:
-    bot = context.bot
-    channels = Pyson.read(CHANNELS_FILE)
-    event_id = context.user_data["id"]
-
-    if channels:
-        event = format_event(context)
-        event["published"] = []
-
-        for channel in channels:
-            sent_message = bot.send_photo(
-                chat_id=channel["id"],
-                caption=event["caption"],
-                reply_markup=event["markup"],
-                photo=open(f"{THUMBNAILS_DIRECTORY}/{event_id}.jpg", "rb"),
-                parse_mode=ParseMode.HTML
+        for publication in event["published"]:
+            bot.edit_message_reply_markup(
+                message_id=publication["message_id"],
+                chat_id=publication["chat_id"],
+                reply_markup=markup
             )
 
-            event["published"].append({
-                "chat_id": sent_message.chat_id,
-                "message_id": sent_message.message_id
-            })
+        Pyson.erase_json(EVENTS_FILE, event_id)
+        Pyson.append_json(EVENTS_FILE, event)
 
-        return event["published"]
+    def like_event(
+        update: Update,
+        context: CallbackContext,
+        event_id: int
+    ) -> None:
+        Bot.set_reaction(update, context, int(event_id))
 
-    return []
+    def dislike_event(
+        update: Update,
+        context: CallbackContext,
+        event_id: int
+    ) -> None:
+        Bot.set_reaction(update, context, int(event_id), dislike=True)
 
-
-def save_event(
-    update: Update,
-    context: CallbackContext
-) -> None:
-    event = {
-        "id": context.user_data["id"],
-        "title": context.user_data["title"],
-        "date": context.user_data["date"],
-        "time": context.user_data["time"],
-        "place": context.user_data["place"],
-        "description": context.user_data["description"],
-        "url": context.user_data["url"],
-        "liked": [],
-        "disliked": [],
-        "created": from_whom(update).username,
-        "published": publish_event(update, context)
-    }
-
-    Pyson.append(EVENTS_FILE, event)
-
-
-def download_thumbnail(
-    update: Update,
-    context: CallbackContext
-) -> bool:
-    if not exists(THUMBNAILS_DIRECTORY):
-        makedirs(THUMBNAILS_DIRECTORY)
-
-    try:
-        file_id = update.message.photo[-1].file_id
-        event_id = context.user_data["id"]
-
-        thumbnail = context.bot.get_file(file_id)
-        thumbnail.download(f"{THUMBNAILS_DIRECTORY}/{event_id}.jpg")
-    except:
-        return False
-
-    return True
+    like = like_event.__name__
+    dislike = dislike_event.__name__

@@ -4,10 +4,9 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
-
-from classes.bot import send_message
 
 from commands.back import BACK_COMMAND
 from commands.grant import GRANT_COMMAND
@@ -18,7 +17,7 @@ def admins(
     update: Update,
     context: CallbackContext
 ) -> None:
-    send_message(
+    Bot.edit_previous_message(
         update, context,
         ADMINS_COMMAND.description,
         ADMINS_COMMAND.markup
@@ -27,7 +26,7 @@ def admins(
 
 ADMINS_COMMAND = Command(
     callback=admins,
-    description="👨🏻‍💻 Управление администраторами",
+    description="👨🏻‍💻 Управление администраторами\n",
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

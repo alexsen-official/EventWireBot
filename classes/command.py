@@ -1,7 +1,10 @@
+from telegram import (
+    MessageEntity,
+    InlineKeyboardMarkup
+)
+
 from typing import Callable
-from telegram.ext import Filters
 from telegram.message import Message
-from telegram import InlineKeyboardMarkup
 
 
 class Command:
@@ -16,6 +19,7 @@ class Command:
         states: dict[str, str] = {},
         hidden: bool = False
     ) -> None:
+        self.id = len(self.commands) + 1
         self.name = name
         self.callback = callback
         self.description = description
@@ -32,7 +36,14 @@ class Command:
     def filter(
         message: Message
     ) -> bool:
-        return Filters._Command.filter(Filters._Command, message)
+        if not message:
+            return False
+
+        for entity in message.entities:
+            if entity.type is MessageEntity.BOT_COMMAND:
+                return True
+
+        return False
 
     def next_state(
         self,

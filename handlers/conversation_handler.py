@@ -21,18 +21,21 @@ CONVERSATION_HANDLER = ConversationHandler(
     ],
 
     states={
-        GRANT_COMMAND.name: [MessageHandler(
+        GRANT_COMMAND.id: [MessageHandler(
             Filters.all & ~Filters.command, GRANT_COMMAND.callback
         )],
 
-        CREATE_COMMAND.name: [MessageHandler(
+        CREATE_COMMAND.id: [MessageHandler(
             Filters.all & ~Filters.command, CREATE_COMMAND.callback
         )],
 
-        ATTACH_COMMAND.name: [MessageHandler(
+        ATTACH_COMMAND.id: [MessageHandler(
             Filters.all & ~Filters.command, ATTACH_COMMAND.callback
         )]
     },
 
-    fallbacks=[MessageHandler(Filters.command, CANCEL_COMMAND.callback)]
+    fallbacks=[
+        QUERY_HANDLER,
+        MessageHandler(Filters.command, CANCEL_COMMAND.callback)
+    ]
 )

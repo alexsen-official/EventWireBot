@@ -4,28 +4,34 @@ from telegram import (
     InlineKeyboardButton
 )
 
+from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from classes.bot import send_message
-
 from commands.back import BACK_COMMAND
+from commands.help import HELP_COMMAND
 
 
 def undefined(
     update: Update,
     context: CallbackContext
 ) -> None:
-    send_message(
+    Bot.edit_previous_message(
         update, context,
-        UNDEFINED_COMMAND.description,
+        UNDEFINED_COMMAND.states["warning"],
         UNDEFINED_COMMAND.markup
     )
 
 
 UNDEFINED_COMMAND = Command(
     callback=undefined,
-    description="⚠️ Неизвестная команда!",
+
+    states={
+        "warning": (
+            "⚠️ <b>Неизвестная команда!</b>\n"
+            f"Используйте команду /{HELP_COMMAND.name} для просмотра доступных команд!"
+        )
+    },
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

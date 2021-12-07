@@ -9,14 +9,9 @@ from telegram.ext import (
     ConversationHandler
 )
 
+from classes.bot import Bot
 from classes.pyson import Pyson
 from classes.command import Command
-
-from classes.bot import (
-    signal_last,
-    send_message,
-    delete_messages
-)
 
 from config import ADMINS_FILE
 from commands.back import BACK_COMMAND
@@ -25,46 +20,55 @@ from commands.back import BACK_COMMAND
 def grant(
     update: Update,
     context: CallbackContext
-) -> str:
+) -> int:
     message = update.message
-    blank = True
+    show_message = Bot.edit_previous_message
 
     if message and not Command.filter(message):
         mentions = list(message.parse_entities("mention").values())
-        delete_messages(update, context)
 
         if mentions:
-            admins = Pyson.read(ADMINS_FILE)
-            markup = None
+            first = True
 
-            for last, mention in signal_last(mentions):
-                username = str(mention)[1:]
+            for last, mention in Bot.signal_last(mentions):
+                username = mention[1:]
                 admin = {"username": username}
 
-                if admin in admins:
+                if Pyson.find_object(ADMINS_FILE, username) is not None:
                     state = "warning"
                 else:
-                    Pyson.append(ADMINS_FILE, admin)
                     state = "success"
+                    Pyson.append_json(ADMINS_FILE, admin)
 
-                if last:
-                    markup = GRANT_COMMAND.markup
+                if first:
+                    first = False
+                else:
+                    show_message = Bot.send_message
 
-                response = GRANT_COMMAND.states[state].format(username)
-                send_message(update, context, response, markup, blank=False)
+                show_message(
+                    update, context,
+                    GRANT_COMMAND.states[state].format(mention),
+                    GRANT_COMMAND.markup if last else None
+                )
 
             return ConversationHandler.END
         else:
-            blank = False
-            send_message(update, context, GRANT_COMMAND.states["error"])
+            Bot.delete_bot_messages(update, context)
 
-    send_message(
+            show_message(
+                update, context,
+                GRANT_COMMAND.states["error"]
+            )
+
+        show_message = Bot.send_message
+
+    show_message(
         update, context,
         GRANT_COMMAND.states["default"],
-        GRANT_COMMAND.markup, blank=blank
+        GRANT_COMMAND.markup
     )
 
-    return GRANT_COMMAND.name
+    return GRANT_COMMAND.id
 
 
 GRANT_COMMAND = Command(
@@ -73,8 +77,8 @@ GRANT_COMMAND = Command(
 
     states={
         "default": "👨🏻‍💻 Введите имя пользователя, которого вы хотите назначить администратором: ",
-        "success": "✅ <b>Пользователь @{} успешно назначен администратором!</b>",
-        "warning": "⚠️ <b>Пользователь @{} уже является администратором!</b>",
+        "success": "✅ <b>Пользователь {} успешно назначен администратором!</b>",
+        "warning": "⚠️ <b>Пользователь {} уже является администратором!</b>",
         "error": "❌ <b>Имя пользователя отсутствует или введено неверно!</b>"
     },
 

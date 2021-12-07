@@ -4,10 +4,9 @@ from telegram.ext import (
 )
 
 from telegram import Update
+from classes.bot import Bot
 
-from classes.bot import like
 from commands.help import help
-from classes.bot import dislike
 from commands.start import start
 from commands.grant import grant
 from commands.events import events
@@ -17,7 +16,6 @@ from commands.attach import attach
 from commands.detach import detach
 from commands.admins import admins
 from commands.revoke import revoke
-from classes.bot import check_admin
 from commands.channels import channels
 
 from typing import Any
@@ -28,21 +26,20 @@ def callback_query_handler(
     context: CallbackContext
 ) -> Any:
     query = update.callback_query
+    data = query.data.split()
+
+    if data[0] == Bot.like:
+        return Bot.like_event(update, context, data[1])
+    elif data[0] == Bot.dislike:
+        return Bot.dislike_event(update, context, data[1])
+
+    Bot.check_admin(update, context)
     query.answer()
 
-    data = query.data.split()
-    callback = data[0]
-
-    if callback == str(None):
-        return None
-
-    if callback != like.__name__ and callback != dislike.__name__:
-        check_admin(update, context)
-
     if len(data) > 1:
-        return globals()[callback](update, context, data[1])
+        return globals()[data[0]](update, context, data[1])
 
-    return globals()[callback](update, context)
+    return globals()[data[0]](update, context)
 
 
 QUERY_HANDLER = CallbackQueryHandler(callback_query_handler)
