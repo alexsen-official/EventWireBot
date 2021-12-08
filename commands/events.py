@@ -9,6 +9,7 @@ from classes.command import Command
 from telegram.ext import CallbackContext
 
 from commands.back import BACK_COMMAND
+from commands.show import SHOW_COMMAND
 from commands.create import CREATE_COMMAND
 from commands.delete import DELETE_COMMAND
 
@@ -29,6 +30,11 @@ EVENTS_COMMAND = Command(
     description="🎤 Управление мероприятиями\n",
 
     markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            text=SHOW_COMMAND.description,
+            callback_data=SHOW_COMMAND.name
+        )],
+
         [InlineKeyboardButton(
             text=CREATE_COMMAND.description,
             callback_data=CREATE_COMMAND.name

@@ -5,6 +5,7 @@ from telegram import (
 )
 
 from classes.bot import Bot
+from classes.event import Event
 from classes.pyson import Pyson
 from classes.command import Command
 from telegram.ext import CallbackContext
@@ -47,7 +48,7 @@ def delete(
                 message_id=publication["message_id"]
             )
 
-        Bot.delete_thumbnail(id)
+        Event.delete_photo(id)
         Pyson.erase_json(EVENTS_FILE, id)
 
     keyboard.append([

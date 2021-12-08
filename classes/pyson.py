@@ -1,20 +1,12 @@
-from os import (
-    walk,
-    makedirs
-)
-
-from os.path import (
-    isdir,
-    exists
-)
-
 from json import (
     load,
     dump
 )
 
+from os import makedirs
+from os.path import exists
+
 from typing import Any
-from sys import maxsize
 from config import ENCODING
 
 
@@ -81,10 +73,3 @@ class Pyson:
 
                 if not exists(directory):
                     makedirs(directory)
-
-    def generate_id(
-        path: str
-    ) -> int:
-        for id in range(1, maxsize):
-            if Pyson.find_object(path, id) is None:
-                return id

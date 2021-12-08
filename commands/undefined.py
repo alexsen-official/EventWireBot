@@ -29,7 +29,7 @@ UNDEFINED_COMMAND = Command(
     states={
         "warning": (
             "⚠️ <b>Неизвестная команда!</b>\n"
-            f"Используйте команду /{HELP_COMMAND.name} для просмотра доступных команд!"
+            f"Используйте команду <b>/{HELP_COMMAND.name}</b> для просмотра доступных команд!"
         )
     },
 

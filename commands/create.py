@@ -10,6 +10,7 @@ from telegram.ext import (
 )
 
 from classes.bot import Bot
+from classes.event import Event
 from classes.pyson import Pyson
 from classes.command import Command
 
@@ -39,7 +40,7 @@ def create(
                 context.user_data[state] = url
                 response = f" <b><a href='{url}'>ссылка</a></b>"
         elif state == "thumbnail":
-            if Bot.download_thumbnail(update, context):
+            if Event.download_photo(update, context):
                 response = " <b>изображение</b>"
 
         if response:
@@ -56,7 +57,7 @@ def create(
         show_message = Bot.send_message
     else:
         state = CREATE_COMMAND.next_state()
-        context.user_data["id"] = Pyson.generate_id(EVENTS_FILE)
+        context.user_data["id"] = Event.generate_id()
 
     context.user_data["state"] = state
 
@@ -67,9 +68,9 @@ def create(
     )
 
     if state == "success":
-        event_id = Bot.save_event(update, context)
+        id = Event.save(update, context)
+        Event.publish(update, context, id)
 
-        Bot.publish_event(update, context, event_id)
         return ConversationHandler.END
 
     return CREATE_COMMAND.id

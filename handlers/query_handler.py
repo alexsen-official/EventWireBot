@@ -5,8 +5,10 @@ from telegram.ext import (
 
 from telegram import Update
 from classes.bot import Bot
+from classes.event import Event
 
 from commands.help import help
+from commands.show import show
 from commands.start import start
 from commands.grant import grant
 from commands.events import events
@@ -28,10 +30,10 @@ def callback_query_handler(
     query = update.callback_query
     data = query.data.split()
 
-    if data[0] == Bot.like:
-        return Bot.like_event(update, context, data[1])
-    elif data[0] == Bot.dislike:
-        return Bot.dislike_event(update, context, data[1])
+    if data[0] == Event.like.__name__:
+        return Event.like(update, context, data[1])
+    elif data[0] == Event.dislike.__name__:
+        return Event.dislike(update, context, data[1])
 
     Bot.check_admin(update, context)
     query.answer()
