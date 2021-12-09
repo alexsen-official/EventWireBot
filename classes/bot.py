@@ -4,8 +4,7 @@ from telegram import (
     Update,
     Message,
     ParseMode,
-    InlineKeyboardMarkup,
-    replymarkup
+    InlineKeyboardMarkup
 )
 
 from typing import (
@@ -110,18 +109,18 @@ class Bot:
             chat_id = update.effective_chat.id
 
         if photo_path is None:
-            Bot.messages.append(
-                bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    reply_markup=markup,
-                    parse_mode=ParseMode.HTML
-                )
+            sent_message = bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML
             )
+
+            Bot.messages.append(sent_message)
         else:
             photo = open(photo_path, "rb")
 
-            bot.send_photo(
+            sent_message = bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
                 caption=text,
@@ -129,7 +128,7 @@ class Bot:
                 parse_mode=ParseMode.HTML
             )
 
-        return Bot.messages[-1]
+        return sent_message
 
     def edit_message(
         update: Update,
@@ -182,15 +181,12 @@ class Bot:
     def delete_message(
         update: Update,
         context: CallbackContext,
-        message: Message,
-        chat_id: int = None
+        message: Message
     ) -> bool:
         if message:
             bot = context.bot
+            chat_id = message.chat.id
             message_id = message.message_id
-
-            if chat_id is None:
-                chat_id = update.effective_chat.id
 
             if message in Bot.messages:
                 Bot.messages.remove(message)
@@ -199,6 +195,13 @@ class Bot:
                 return bot.delete_message(chat_id, message_id)
             except:
                 return False
+
+    def delete_previous_message(
+        update: Update,
+        context: CallbackContext
+    ) -> bool:
+        previous_message = Bot.messages[-1]
+        return Bot.delete_message(update, context, previous_message)
 
     def delete_user_message(
         update: Update,

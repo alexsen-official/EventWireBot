@@ -19,26 +19,21 @@ def show(
     context: CallbackContext
 ) -> None:
     events = Pyson.read_json(EVENTS_FILE)
-    show_message = Bot.edit_previous_message
 
     if len(events) > 10:
         events = events[:-10]
 
     if events:
-        first = True
+        Bot.delete_previous_message(update, context)
 
         for last, event in Bot.signal_last(events):
             formatted = Event.format(event)
 
             text = formatted["text"]
+            text += f"📢 Количество публикаций: <b>{len(event['published'])}</b>\n"
             text += f"👨🏻‍💻 Создано: <b>@{event['created']}</b>"
 
             markup = formatted["markup"]
-
-            if first:
-                first = False
-            else:
-                show_message = Bot.send_message
 
             if last:
                 markup.inline_keyboard.append([
@@ -48,9 +43,10 @@ def show(
                     )
                 ])
 
-            show_message(update, context, text, markup)
+            Bot.send_message(update, context, text, markup,
+                             formatted["photo_path"])
     else:
-        show_message(
+        Bot.edit_previous_message(
             update, context,
             SHOW_COMMAND.states["warning"],
             SHOW_COMMAND.markup

@@ -3,6 +3,7 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
+from telegram.message import Message
 
 from classes.bot import Bot
 from classes.pyson import Pyson
@@ -139,10 +140,7 @@ class Event:
                     channel["id"]
                 )
 
-                event["published"].append({
-                    "chat_id": sent.chat_id,
-                    "message_id": sent.message_id
-                })
+                event["published"].append(sent.to_dict())
 
         Pyson.erase_json(EVENTS_FILE, id)
         Pyson.append_json(EVENTS_FILE, event)
@@ -188,7 +186,7 @@ class Event:
 
         for publication in event["published"]:
             bot.edit_message_reply_markup(
-                publication["chat_id"],
+                publication["chat"]["id"],
                 publication["message_id"],
                 reply_markup=markup
             )
