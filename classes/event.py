@@ -3,7 +3,6 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
-from telegram.message import Message
 
 from classes.bot import Bot
 from classes.pyson import Pyson
@@ -137,7 +136,8 @@ class Event:
                     formatted["text"],
                     formatted["markup"],
                     formatted["photo_path"],
-                    channel["id"]
+                    channel["id"],
+                    history_record=False
                 )
 
                 event["published"].append(sent.to_dict())

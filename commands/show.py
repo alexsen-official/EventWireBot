@@ -10,7 +10,11 @@ from classes.pyson import Pyson
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from config import EVENTS_FILE
+from config import (
+    EVENTS_FILE,
+    MAX_MESSAGES
+)
+
 from commands.back import BACK_COMMAND
 
 
@@ -20,31 +24,35 @@ def show(
 ) -> None:
     events = Pyson.read_json(EVENTS_FILE)
 
-    if len(events) > 10:
-        events = events[:-10]
-
     if events:
+        showed = 0
         Bot.delete_previous_message(update, context)
 
-        for last, event in Bot.signal_last(events):
+        for event in events:
+            showed += 1
             formatted = Event.format(event)
+
+            if showed > MAX_MESSAGES:
+                break
 
             text = formatted["text"]
             text += f"📢 Количество публикаций: <b>{len(event['published'])}</b>\n"
             text += f"👨🏻‍💻 Создано: <b>@{event['created']}</b>"
 
-            markup = formatted["markup"]
+            Bot.send_message(
+                update, context, text,
+                formatted["markup"],
+                formatted["photo_path"]
+            )
 
-            if last:
-                markup.inline_keyboard.append([
-                    InlineKeyboardButton(
-                        text=BACK_COMMAND.description,
-                        callback_data=BACK_COMMAND.name
-                    )
-                ])
+        response = SHOW_COMMAND.states["success"].format(
+            showed if showed > 1 else ""
+        )
 
-            Bot.send_message(update, context, text, markup,
-                             formatted["photo_path"])
+        Bot.send_message(
+            update, context, response,
+            SHOW_COMMAND.markup
+        )
     else:
         Bot.edit_previous_message(
             update, context,
@@ -58,7 +66,8 @@ SHOW_COMMAND = Command(
     description="📑 Список мероприятий",
 
     states={
-        "warning": "⚠️ <b>Нет опубликованных мероприятий!</b>"
+        "warning": "⚠️ <b>Нет опубликованных мероприятий!</b>",
+        "success": "✅ <b>Успешно показана информация о {} последних меропритиях!</b>"
     },
 
     markup=InlineKeyboardMarkup([

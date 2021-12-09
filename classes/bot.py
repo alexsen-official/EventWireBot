@@ -101,7 +101,8 @@ class Bot:
         text: str,
         markup: InlineKeyboardMarkup = None,
         photo_path: str = None,
-        chat_id: int = None
+        chat_id: int = None,
+        history_record: bool = True
     ) -> Message:
         bot = context.bot
 
@@ -115,8 +116,6 @@ class Bot:
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
-
-            Bot.messages.append(sent_message)
         else:
             photo = open(photo_path, "rb")
 
@@ -127,6 +126,9 @@ class Bot:
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
             )
+
+        if history_record:
+            Bot.messages.append(sent_message)
 
         return sent_message
 
@@ -150,16 +152,20 @@ class Bot:
         if chat_id is None:
             chat_id = update.effective_chat.id
 
-        if message in Bot.messages:
-            Bot.messages.remove(message)
+        try:
+            edited_message = bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                reply_markup=markup,
+                parse_mode=ParseMode.HTML,
+            )
 
-        edited_message = bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=text,
-            reply_markup=markup,
-            parse_mode=ParseMode.HTML,
-        )
+            if message in Bot.messages:
+                Bot.messages.remove(message)
+        except:
+            Bot.delete_previous_message(update, context)
+            return None
 
         Bot.messages.append(edited_message)
         return edited_message
@@ -174,7 +180,15 @@ class Bot:
 
         if Bot.messages:
             previous_message = Bot.messages[-1]
-            return Bot.edit_message(update, context, previous_message, text, markup)
+
+            edited_message = Bot.edit_message(
+                update, context,
+                previous_message,
+                text, markup
+            )
+
+            if edited_message is not None:
+                return edited_message
 
         return Bot.send_message(update, context, text, markup)
 
