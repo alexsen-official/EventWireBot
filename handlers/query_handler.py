@@ -1,5 +1,6 @@
 from telegram.ext import (
     CallbackContext,
+    ConversationHandler,
     CallbackQueryHandler
 )
 
@@ -35,13 +36,15 @@ def callback_query_handler(
     elif data[0] == Event.dislike.__name__:
         return Event.dislike(update, context, data[1])
 
-    Bot.check_admin(update, context)
-    query.answer()
+    if Bot.check_admin(update, context):
+        query.answer()
 
-    if len(data) > 1:
-        return globals()[data[0]](update, context, data[1])
+        if len(data) > 1:
+            return globals()[data[0]](update, context, data[1])
 
-    return globals()[data[0]](update, context)
+        return globals()[data[0]](update, context)
+
+    return ConversationHandler.END
 
 
 QUERY_HANDLER = CallbackQueryHandler(callback_query_handler)

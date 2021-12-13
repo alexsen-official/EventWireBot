@@ -1,5 +1,3 @@
-MAX_MESSAGES = 10
-
 ENCODING = "UTF-8"
 DATA_DIRECTORY = "data"
 

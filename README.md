@@ -1,4 +1,4 @@
-# **@EventWireBot**
+# [**@EventWireBot**](https://t.me/EventWireBot)
 
 **EventWire** – это самый простой и удобный способ распространения информации о мероприятиях в telegram-каналах!
 

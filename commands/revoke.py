@@ -49,7 +49,7 @@ def revoke(
         )
     ])
 
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         REVOKE_COMMAND.states[state].format(username),
         InlineKeyboardMarkup(keyboard)

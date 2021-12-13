@@ -22,14 +22,11 @@ def grant(
     context: CallbackContext
 ) -> int:
     message = update.message
-    show_message = Bot.edit_previous_message
 
     if message and not Command.filter(message):
         mentions = list(message.parse_entities("mention").values())
 
         if mentions:
-            first = True
-
             for last, mention in Bot.signal_last(mentions):
                 username = mention[1:]
                 admin = {"username": username}
@@ -40,12 +37,7 @@ def grant(
                     state = "success"
                     Pyson.append_json(ADMINS_FILE, admin)
 
-                if first:
-                    first = False
-                else:
-                    show_message = Bot.send_message
-
-                show_message(
+                Bot.send_message(
                     update, context,
                     GRANT_COMMAND.states[state].format(mention),
                     GRANT_COMMAND.markup if last else None
@@ -53,19 +45,14 @@ def grant(
 
             return ConversationHandler.END
         else:
-            Bot.delete_bot_messages(update, context)
-
-            show_message(
+            Bot.send_message(
                 update, context,
                 GRANT_COMMAND.states["error"]
             )
 
-        show_message = Bot.send_message
-
-    show_message(
+    Bot.send_message(
         update, context,
-        GRANT_COMMAND.states["default"],
-        GRANT_COMMAND.markup
+        GRANT_COMMAND.states["default"]
     )
 
     return GRANT_COMMAND.id

@@ -23,22 +23,17 @@ def cancel(
 ) -> Any:
     message = update.message
 
-    if message and Command.filter(message):
-        Bot.edit_previous_message(
-            update, context,
-            CANCEL_COMMAND.states["warning"]
-        )
-
-        try:
-            return globals()[message[1:]](update, context)
-        except:
-            return UNDEFINED_COMMAND.callback(update, context)
-
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         CANCEL_COMMAND.states["warning"],
         CANCEL_COMMAND.markup
     )
+
+    if message and Command.filter(message):
+        try:
+            return globals()[message[1:]](update, context)
+        except:
+            return UNDEFINED_COMMAND.callback(update, context)
 
     return ConversationHandler.END
 

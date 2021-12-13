@@ -10,11 +10,7 @@ from classes.pyson import Pyson
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from config import (
-    EVENTS_FILE,
-    MAX_MESSAGES
-)
-
+from config import EVENTS_FILE
 from commands.back import BACK_COMMAND
 
 
@@ -24,37 +20,33 @@ def show(
 ) -> None:
     events = Pyson.read_json(EVENTS_FILE)
 
+    if len(events) > 10:
+        events = events[-10]
+
     if events:
-        showed = 0
-        Bot.delete_previous_message(update, context)
-
         for event in events:
-            showed += 1
             formatted = Event.format(event)
-
-            if showed > MAX_MESSAGES:
-                break
 
             text = formatted["text"]
             text += f"📢 Количество публикаций: <b>{len(event['published'])}</b>\n"
             text += f"👨🏻‍💻 Создано: <b>@{event['created']}</b>"
 
+            Bot.delete_message(update, context, update.callback_query.message)
+
             Bot.send_message(
                 update, context, text,
-                formatted["markup"],
-                formatted["photo_path"]
+                formatted["reply_markup"],
+                formatted["photo_path"],
+                blank=True
             )
 
-        response = SHOW_COMMAND.states["success"].format(
-            showed if showed > 1 else ""
-        )
-
         Bot.send_message(
-            update, context, response,
+            update, context,
+            SHOW_COMMAND.states["success"],
             SHOW_COMMAND.markup
         )
     else:
-        Bot.edit_previous_message(
+        Bot.send_message(
             update, context,
             SHOW_COMMAND.states["warning"],
             SHOW_COMMAND.markup
@@ -67,7 +59,7 @@ SHOW_COMMAND = Command(
 
     states={
         "warning": "⚠️ <b>Нет опубликованных мероприятий!</b>",
-        "success": "✅ <b>Успешно показана информация о {} последних меропритиях!</b>"
+        "success": "✅ <b>Успешно показана информация о последних меропритиях!</b>"
     },
 
     markup=InlineKeyboardMarkup([

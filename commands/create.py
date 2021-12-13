@@ -11,10 +11,8 @@ from telegram.ext import (
 
 from classes.bot import Bot
 from classes.event import Event
-from classes.pyson import Pyson
 from classes.command import Command
 
-from config import EVENTS_FILE
 from commands.back import BACK_COMMAND
 
 
@@ -23,7 +21,6 @@ def create(
     context: CallbackContext
 ) -> int:
     message = update.message
-    show_message = Bot.edit_previous_message
 
     if "state" in context.user_data.keys():
         response = ""
@@ -45,35 +42,35 @@ def create(
 
         if response:
             state = CREATE_COMMAND.next_state(state)
-            response = Bot.messages[-1].text + response
-
-            show_message(update, context, response)
         else:
-            show_message(
+            Bot.send_message(
                 update, context,
                 CREATE_COMMAND.states["error"]
             )
-
-        show_message = Bot.send_message
     else:
         state = CREATE_COMMAND.next_state()
         context.user_data["id"] = Event.generate_id()
 
     context.user_data["state"] = state
 
-    show_message(
-        update, context,
-        CREATE_COMMAND.states[state],
-        CREATE_COMMAND.markup
-    )
-
     if state == "success":
         id = Event.save(update, context)
         Event.publish(update, context, id)
 
-        return ConversationHandler.END
+        Bot.send_message(
+            update, context,
+            CREATE_COMMAND.states[state],
+            CREATE_COMMAND.markup
+        )
 
-    return CREATE_COMMAND.id
+        return ConversationHandler.END
+    else:
+        Bot.send_message(
+            update, context,
+            CREATE_COMMAND.states[state]
+        )
+
+        return CREATE_COMMAND.id
 
 
 CREATE_COMMAND = Command(

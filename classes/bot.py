@@ -68,20 +68,27 @@ class Bot:
     def check_admin(
         update: Update,
         context: CallbackContext
-    ) -> int:
+    ) -> bool:
+        bot = context.bot
+        chat_id = update.effective_chat.id
         username = Bot.from_whom(update).username
         admin = Pyson.find_object(ADMINS_FILE, username)
 
-        text = (
-            "❌ <b>Отказано в доступе!</b>\n"
-            "Вы не являетесь администатором!"
-        )
+        if admin is None:
+            text = (
+                "❌ <b>Отказано в доступе!</b>\n"
+                "Вы не являетесь администатором!"
+            )
 
-        if username in admin.values():
-            return ConversationHandler.END
+            bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=ParseMode.HTML
+            )
 
-        Bot.send_message(update, context, text)
-        exit()
+            return False
+
+        return True
 
     def signal_last(
         iterable: Iterable[Any]
@@ -99,98 +106,55 @@ class Bot:
         update: Update,
         context: CallbackContext,
         text: str,
-        markup: InlineKeyboardMarkup = None,
+        reply_markup: InlineKeyboardMarkup = None,
         photo_path: str = None,
         chat_id: int = None,
-        history_record: bool = True
+        blank: bool = False
     ) -> Message:
         bot = context.bot
+        sent_message = None
+        query = update.callback_query
 
-        if chat_id is None:
-            chat_id = update.effective_chat.id
+        if Bot.check_admin(update, context):
+            if chat_id is None:
+                chat_id = update.effective_chat.id
 
-        if photo_path is None:
-            sent_message = bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML
-            )
-        else:
-            photo = open(photo_path, "rb")
+            if query and not blank:
+                try:
+                    sent_message = bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=query.message.message_id,
+                        text=text,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.HTML
+                    )
+                except:
+                    sent_message = bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.HTML
+                    )
+            else:
+                try:
+                    photo = open(photo_path, "rb")
 
-            sent_message = bot.send_photo(
-                chat_id=chat_id,
-                photo=photo,
-                caption=text,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML
-            )
-
-        if history_record:
-            Bot.messages.append(sent_message)
+                    sent_message = bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption=text,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.HTML
+                    )
+                except:
+                    sent_message = bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.HTML
+                    )
 
         return sent_message
-
-    def edit_message(
-        update: Update,
-        context: CallbackContext,
-        message: Message,
-        text: str,
-        markup: InlineKeyboardMarkup = None,
-        chat_id: int = None
-    ) -> Message:
-        bot = context.bot
-        message_id = message.message_id
-
-        if Bot.messages:
-            previous_message = Bot.messages[-1]
-
-            if previous_message.text == text and previous_message.reply_markup == markup:
-                return previous_message
-
-        if chat_id is None:
-            chat_id = update.effective_chat.id
-
-        try:
-            edited_message = bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=text,
-                reply_markup=markup,
-                parse_mode=ParseMode.HTML,
-            )
-
-            if message in Bot.messages:
-                Bot.messages.remove(message)
-        except:
-            Bot.delete_previous_message(update, context)
-            return None
-
-        Bot.messages.append(edited_message)
-        return edited_message
-
-    def edit_previous_message(
-        update: Update,
-        context: CallbackContext,
-        text: str,
-        markup: InlineKeyboardMarkup = None
-    ) -> Message:
-        Bot.delete_user_message(update, context)
-
-        if Bot.messages:
-            previous_message = Bot.messages[-1]
-
-            edited_message = Bot.edit_message(
-                update, context,
-                previous_message,
-                text, markup
-            )
-
-            if edited_message is not None:
-                return edited_message
-
-        return Bot.send_message(update, context, text, markup)
 
     def delete_message(
         update: Update,
@@ -202,38 +166,7 @@ class Bot:
             chat_id = message.chat.id
             message_id = message.message_id
 
-            if message in Bot.messages:
-                Bot.messages.remove(message)
-
             try:
                 return bot.delete_message(chat_id, message_id)
             except:
                 return False
-
-    def delete_previous_message(
-        update: Update,
-        context: CallbackContext
-    ) -> bool:
-        previous_message = Bot.messages[-1]
-        return Bot.delete_message(update, context, previous_message)
-
-    def delete_user_message(
-        update: Update,
-        context: CallbackContext
-    ) -> bool:
-        user_message = update.message
-        return Bot.delete_message(update, context, user_message)
-
-    def delete_bot_messages(
-        update: Update,
-        context: CallbackContext
-    ) -> None:
-        for message in Bot.messages[:-1]:
-            Bot.delete_message(update, context, message)
-
-    def delete_all_messages(
-        update: Update,
-        context: CallbackContext
-    ) -> None:
-        Bot.delete_bot_messages(update, context)
-        Bot.delete_user_message(update, context)

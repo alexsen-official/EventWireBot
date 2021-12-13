@@ -8,8 +8,8 @@ from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from commands.back import BACK_COMMAND
 from commands.show import SHOW_COMMAND
+from commands.back import BACK_COMMAND
 from commands.create import CREATE_COMMAND
 from commands.delete import DELETE_COMMAND
 
@@ -18,7 +18,7 @@ def events(
     update: Update,
     context: CallbackContext
 ) -> None:
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         EVENTS_COMMAND.description,
         EVENTS_COMMAND.markup

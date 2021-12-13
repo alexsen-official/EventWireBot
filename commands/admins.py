@@ -17,7 +17,7 @@ def admins(
     update: Update,
     context: CallbackContext
 ) -> None:
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         ADMINS_COMMAND.description,
         ADMINS_COMMAND.markup

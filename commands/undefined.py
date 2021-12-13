@@ -8,15 +8,15 @@ from classes.bot import Bot
 from classes.command import Command
 from telegram.ext import CallbackContext
 
-from commands.back import BACK_COMMAND
 from commands.help import HELP_COMMAND
+from commands.back import BACK_COMMAND
 
 
 def undefined(
     update: Update,
     context: CallbackContext
 ) -> None:
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         UNDEFINED_COMMAND.states["warning"],
         UNDEFINED_COMMAND.markup

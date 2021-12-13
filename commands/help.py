@@ -15,13 +15,13 @@ def help(
     update: Update,
     context: CallbackContext
 ) -> None:
-    response = ""
+    if not HELP_COMMAND.states["default"]:
+        for command in Command.commands:
+            HELP_COMMAND.states["default"] += f"<b>/{command.name}</b> - {command.description}\n"
 
-    for command in Command.commands:
-        response += f"<b>/{command.name}</b> - {command.description}\n"
-
-    Bot.edit_previous_message(
-        update, context, response,
+    Bot.send_message(
+        update, context,
+        HELP_COMMAND.states["default"],
         HELP_COMMAND.markup
     )
 
@@ -29,6 +29,10 @@ def help(
 HELP_COMMAND = Command(
     callback=help,
     description="🔎 Просмотр доступных команд\n",
+
+    states={
+        "default": ""
+    },
 
     markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(

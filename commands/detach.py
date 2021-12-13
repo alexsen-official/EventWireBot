@@ -52,7 +52,7 @@ def detach(
         )
     ])
 
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         DETACH_COMMAND.states[state].format(title),
         InlineKeyboardMarkup(keyboard)

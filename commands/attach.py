@@ -22,14 +22,12 @@ def attach(
     context: CallbackContext
 ) -> int:
     message = update.message
-    show_message = Bot.edit_previous_message
 
     if message and not Command.filter(message):
         urls = list(message.parse_entities("url").values())
 
         if urls:
             title = ""
-            first = True
 
             for last, url in Bot.signal_last(urls):
                 chat = Bot.get_chat(context, url)
@@ -46,12 +44,7 @@ def attach(
                         state = "success"
                         Pyson.append_json(CHANNELS_FILE, channel)
 
-                if first:
-                    first = False
-                else:
-                    show_message = Bot.send_message
-
-                show_message(
+                Bot.send_message(
                     update, context,
                     ATTACH_COMMAND.states[state].format(title),
                     ATTACH_COMMAND.markup if last else None
@@ -59,19 +52,14 @@ def attach(
 
             return ConversationHandler.END
         else:
-            Bot.delete_bot_messages(update, context)
-
-            show_message(
+            Bot.send_message(
                 update, context,
                 ATTACH_COMMAND.states["error"]
             )
 
-        show_message = Bot.send_message
-
-    show_message(
+    Bot.send_message(
         update, context,
-        ATTACH_COMMAND.states["default"],
-        ATTACH_COMMAND.markup
+        ATTACH_COMMAND.states["default"]
     )
 
     return ATTACH_COMMAND.id

@@ -79,14 +79,14 @@ class Event:
                 f"{event['description']}\n\n"
             ),
 
-            "markup": InlineKeyboardMarkup([[
+            "reply_markup": InlineKeyboardMarkup([[
                 InlineKeyboardButton(
-                    text="👍 0",
+                    text=f"👍 {len(event['liked'])}",
                     callback_data=f"{Event.like.__name__} {id}"
                 ),
 
                 InlineKeyboardButton(
-                    text="👎 0",
+                    text=f"👎 {len(event['disliked'])}",
                     callback_data=f"{Event.dislike.__name__} {id}"
                 )],
 
@@ -134,10 +134,9 @@ class Event:
                 sent = Bot.send_message(
                     update, context,
                     formatted["text"],
-                    formatted["markup"],
+                    formatted["reply_markup"],
                     formatted["photo_path"],
-                    channel["id"],
-                    history_record=False
+                    channel["id"]
                 )
 
                 event["published"].append(sent.to_dict())

@@ -25,9 +25,7 @@ def start(
     if "state" in context.user_data.keys():
         del context.user_data["state"]
 
-    Bot.delete_all_messages(update, context)
-
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         START_COMMAND.description,
         START_COMMAND.markup

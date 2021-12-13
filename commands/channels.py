@@ -17,7 +17,7 @@ def channels(
     update: Update,
     context: CallbackContext
 ) -> None:
-    Bot.edit_previous_message(
+    Bot.send_message(
         update, context,
         CHANNELS_COMMAND.description,
         CHANNELS_COMMAND.markup
