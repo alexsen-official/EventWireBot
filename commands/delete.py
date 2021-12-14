@@ -3,12 +3,12 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
-from telegram.message import Message
 
 from classes.bot import Bot
 from classes.event import Event
 from classes.pyson import Pyson
 from classes.command import Command
+from telegram.message import Message
 from telegram.ext import CallbackContext
 
 from config import EVENTS_FILE
@@ -43,9 +43,8 @@ def delete(
         event = Pyson.find_object(EVENTS_FILE, id)
         title = event["title"]
 
-        for publication in event["published"]:
-            Bot.delete_message(
-                update, context, Message.de_json(publication, bot))
+        for message in event["messages"]:
+            Bot.delete_message(update, context, Message.de_json(message, bot))
 
         Event.delete_photo(id)
         Pyson.erase_json(EVENTS_FILE, id)

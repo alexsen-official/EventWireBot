@@ -24,14 +24,14 @@ from sys import maxsize
 
 class Event:
     def generate_id() -> int:
-        for id in range(1, maxsize):
-            if Pyson.find_object(EVENTS_FILE, id) is None:
-                return id
+        for event_id in range(1, maxsize):
+            if Pyson.find_object(EVENTS_FILE, event_id) is None:
+                return event_id
 
     def photo_path(
-        id: int
+        event_id: int
     ) -> str:
-        return f"{THUMBNAILS_DIRECTORY}{id}.{THUMBNAILS_FORMAT}"
+        return f"{THUMBNAILS_DIRECTORY}{event_id}.{THUMBNAILS_FORMAT}"
 
     def download_photo(
         update: Update,
@@ -44,32 +44,32 @@ class Event:
 
         try:
             event_id = context.user_data["id"]
-            file_id = message.photo[-1].file_id
+            photo_id = message.photo[-1].file_id
 
-            path = Event.photo_path(event_id)
-            file = bot.get_file(file_id)
+            photo_path = Event.photo_path(event_id)
+            photo = bot.get_file(photo_id)
 
-            file.download(path)
+            photo.download(photo_path)
         except:
             return False
 
         return True
 
     def delete_photo(
-        id: int
+        event_id: int
     ) -> None:
-        path = Event.photo_path(id)
+        photo_path = Event.photo_path(event_id)
 
-        if exists(path):
-            remove(path)
+        if exists(photo_path):
+            remove(photo_path)
 
     def format(
         event: dict[str, Any]
     ) -> dict[str, Any]:
-        id = event["id"]
+        event_id = event["id"]
 
         formatted = {
-            "photo_path": Event.photo_path(id),
+            "photo_path": Event.photo_path(event_id),
 
             "text": (
                 f"<b>{event['title']}</b>\n\n"
@@ -77,17 +77,18 @@ class Event:
                 f"🕘 <b>Время:</b> {event['time']}\n"
                 f"🌍 <b>Место:</b> {event['place']}\n\n"
                 f"{event['description']}\n\n"
+                f"{event['hashtag']}\n\n"
             ),
 
             "reply_markup": InlineKeyboardMarkup([[
                 InlineKeyboardButton(
-                    text=f"👍 {len(event['liked'])}",
-                    callback_data=f"{Event.like.__name__} {id}"
+                    text=f"👍 {len(event['likes'])}",
+                    callback_data=f"{Event.like.__name__} {event_id}"
                 ),
 
                 InlineKeyboardButton(
-                    text=f"👎 {len(event['disliked'])}",
-                    callback_data=f"{Event.dislike.__name__} {id}"
+                    text=f"👎 {len(event['dislikes'])}",
+                    callback_data=f"{Event.dislike.__name__} {event_id}"
                 )],
 
                 [InlineKeyboardButton(
@@ -99,10 +100,10 @@ class Event:
 
         return formatted
 
-    def save(
+    def publish(
         update: Update,
         context: CallbackContext
-    ) -> int:
+    ) -> None:
         event = {
             "id": context.user_data["id"],
             "title": context.user_data["title"],
@@ -110,50 +111,41 @@ class Event:
             "time": context.user_data["time"],
             "place": context.user_data["place"],
             "description": context.user_data["description"],
-            "url": context.user_data["url"],
-            "created": Bot.from_whom(update).username,
-            "published": [],
-            "liked": [],
-            "disliked": []
+            "url": context.user_data["url"][0],
+            "hashtag": context.user_data["hashtag"],
+            "admin": Bot.from_whom(update).username,
+            "likes": [],
+            "dislikes": [],
+            "messages": []
         }
 
-        Pyson.append_json(EVENTS_FILE, event)
-        return event["id"]
-
-    def publish(
-        update: Update,
-        context: CallbackContext,
-        id: int
-    ) -> None:
         channels = Pyson.read_json(CHANNELS_FILE)
-        event = Pyson.find_object(EVENTS_FILE, id)
         formatted = Event.format(event)
 
-        if channels:
-            for channel in channels:
-                sent = Bot.send_message(
-                    update, context,
-                    formatted["text"],
-                    formatted["reply_markup"],
-                    formatted["photo_path"],
-                    channel["id"]
-                )
+        for channel in channels:
+            message = Bot.send_message(
+                update, context,
+                formatted["text"],
+                formatted["reply_markup"],
+                formatted["photo_path"],
+                channel["id"]
+            )
 
-                event["published"].append(sent.to_dict())
+            event["messages"].append(message.to_dict())
 
-        Pyson.erase_json(EVENTS_FILE, id)
         Pyson.append_json(EVENTS_FILE, event)
 
     def feedback(
         update: Update,
         context: CallbackContext,
-        id: int,
+        event_id: int,
         dislike: bool = False
     ) -> None:
         bot = context.bot
-        event = Pyson.find_object(EVENTS_FILE, id)
+        reactions = ["likes", "dislikes"]
+
         user_id = Bot.from_whom(update).id
-        reactions = ["liked", "disliked"]
+        event = Pyson.find_object(EVENTS_FILE, event_id)
 
         if dislike:
             reactions.reverse()
@@ -168,13 +160,13 @@ class Event:
 
         markup = InlineKeyboardMarkup([[
             InlineKeyboardButton(
-                text=f"👍 {len(event['liked'])}",
-                callback_data=f"{Event.like.__name__} {id}"
+                text=f"👍 {len(event['likes'])}",
+                callback_data=f"{Event.like.__name__} {event_id}"
             ),
 
             InlineKeyboardButton(
-                text=f"👎 {len(event['disliked'])}",
-                callback_data=f"{Event.dislike.__name__} {id}"
+                text=f"👎 {len(event['dislikes'])}",
+                callback_data=f"{Event.dislike.__name__} {event_id}"
             )],
 
             [InlineKeyboardButton(
@@ -183,14 +175,14 @@ class Event:
             )]
         ])
 
-        for publication in event["published"]:
+        for message in event["messages"]:
             bot.edit_message_reply_markup(
-                publication["chat"]["id"],
-                publication["message_id"],
+                message["chat"]["id"],
+                message["message_id"],
                 reply_markup=markup
             )
 
-        Pyson.erase_json(EVENTS_FILE, id)
+        Pyson.erase_json(EVENTS_FILE, event_id)
         Pyson.append_json(EVENTS_FILE, event)
 
     def like(

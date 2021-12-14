@@ -28,8 +28,8 @@ def show(
             formatted = Event.format(event)
 
             text = formatted["text"]
-            text += f"📢 Количество публикаций: <b>{len(event['published'])}</b>\n"
-            text += f"👨🏻‍💻 Создано: <b>@{event['created']}</b>"
+            text += f"📢 Количество публикаций: <b>{len(event['messages'])}</b>\n"
+            text += f"👨🏻‍💻 Создано: <b>@{event['admin']}</b>"
 
             Bot.delete_message(update, context, update.callback_query.message)
 
