@@ -71,8 +71,8 @@ class Bot:
     ) -> bool:
         bot = context.bot
         chat_id = update.effective_chat.id
-        username = Bot.from_whom(update).username
-        admin = Pyson.find_object(ADMINS_FILE, username)
+        user = Bot.from_whom(update)
+        admin = Pyson.find_object(ADMINS_FILE, user.username)
 
         if admin is None:
             text = (
@@ -87,6 +87,12 @@ class Bot:
             )
 
             return False
+
+        if "id" not in admin.keys():
+            admin["id"] = user.id
+
+        Pyson.erase_json(ADMINS_FILE, user.username)
+        Pyson.append_json(ADMINS_FILE, admin)
 
         return True
 

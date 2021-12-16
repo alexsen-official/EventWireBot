@@ -3,6 +3,7 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
+from telegram.message import Message
 
 from classes.bot import Bot
 from classes.pyson import Pyson
@@ -77,7 +78,6 @@ class Event:
                 f"🕘 <b>Время:</b> {event['time']}\n"
                 f"🌍 <b>Место:</b> {event['place']}\n\n"
                 f"{event['description']}\n\n"
-                f"{event['hashtag']}\n\n"
             ),
 
             "reply_markup": InlineKeyboardMarkup([[
@@ -97,6 +97,9 @@ class Event:
                 )]
             ])
         }
+
+        for tag in event["hashtag"]:
+            formatted["text"] += f"{tag} "
 
         return formatted
 
@@ -176,11 +179,22 @@ class Event:
         ])
 
         for message in event["messages"]:
+            message = Message.de_json(message, bot)
+
             bot.edit_message_reply_markup(
-                message["chat"]["id"],
-                message["message_id"],
+                message.chat_id,
+                message.message_id,
                 reply_markup=markup
             )
+
+        try:
+            bot.edit_message_reply_markup(
+                update.effective_chat.id,
+                update.callback_query.message.message_id,
+                reply_markup=markup
+            )
+        except:
+            pass
 
         Pyson.erase_json(EVENTS_FILE, event_id)
         Pyson.append_json(EVENTS_FILE, event)
